@@ -5,6 +5,9 @@ package org.property;
 import "google/protobuf/timestamp.proto";
 
 message CarDetails {
+  option no_standard_descriptor_accessor = true;
+  option deprecated = false;
+
   uint64 id = 1;
   string make = 2;
   string model = 3;
