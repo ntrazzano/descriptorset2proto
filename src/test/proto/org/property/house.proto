@@ -4,6 +4,8 @@ package org.property;
 
 import "google/protobuf/timestamp.proto";
 
+option java_outer_classname = "CustomHouseDetailsClassName";
+
 message HouseDetails {
   uint64 id = 1;
   uint32 addressNumber = 2;

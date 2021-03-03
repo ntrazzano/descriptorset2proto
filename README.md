@@ -11,11 +11,15 @@ closest thing I could find was the protobuf C library's DebugString, but it's no
 
 Also wanted an excuse to write more Kotlin.
 
-## Supported Syntax
+## Syntax
+### Supported
 * [syntax](https://developers.google.com/protocol-buffers/docs/reference/proto3-spec#syntax)
 * [import](https://developers.google.com/protocol-buffers/docs/reference/proto3-spec#import_statement)
 * [package](https://developers.google.com/protocol-buffers/docs/reference/proto3-spec#package)
 * [option](https://developers.google.com/protocol-buffers/docs/reference/proto3-spec#option)
+  * file-level
+  * message-level
+  * field-level  
 * [normal_field](https://developers.google.com/protocol-buffers/docs/reference/proto3-spec#normal_field)
 * [oneof_and_oneof_field](https://developers.google.com/protocol-buffers/docs/reference/proto3-spec#oneof_and_oneof_field)
 * [map_field](https://developers.google.com/protocol-buffers/docs/reference/proto3-spec#map_field)
@@ -23,7 +27,8 @@ Also wanted an excuse to write more Kotlin.
 * [enum](https://developers.google.com/protocol-buffers/docs/reference/proto3-spec#enum_definition)
 * [message](https://developers.google.com/protocol-buffers/docs/reference/proto3-spec#message_definitionn)
 * [service](https://developers.google.com/protocol-buffers/docs/reference/proto3-spec#service_definition)
-
+### Unsupported
+* [custom_options](https://developers.google.com/protocol-buffers/docs/overview#customoptions)
 ## Install
 This project uses kotlin and gradle.
 ```

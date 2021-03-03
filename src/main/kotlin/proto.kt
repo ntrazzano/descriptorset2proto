@@ -45,15 +45,15 @@ fun dumpProtoFileDescriptorSet(
                 os.appendLine()
             }
 
-            if(proto.hasOptions()) {
-                handleOptions(os, proto.options)
-                os.appendLine()
-            }
-
             proto.dependencyList.forEach {
                 os.appendLine("import \"${it}\";")
             }
             if(proto.dependencyList.size > 0) os.appendLine()
+
+            if(proto.hasOptions()) {
+                handleOptions(os, proto.options)
+                os.appendLine()
+            }
 
             proto.messageTypeList.forEach { messageType ->
                 handleMessageType(os, messageType, syntax)
@@ -209,9 +209,9 @@ private fun handleMapField(os: IndentedWriter, field: DescriptorProtos.FieldDesc
 
 private fun handleField(os: IndentedWriter, field: DescriptorProtos.FieldDescriptorProto, protoVersion: Int) {
     // {REPEAT?} {TYPE} {NAME} = {NUMBER} [FIELD_OPTIONS,..n];
-    os.append(field.label.asProtoString(protoVersion).let { if(it.isNotEmpty()) "$it " else it })
+    os.append(field.label.asProtoString(protoVersion))
     os.disableIndent {
-        os.append("${field.typeString} ${field.name} = ${field.number}")
+        os.append(" ${field.typeString} ${field.name} = ${field.number}")
         if (field.hasOptions()) {
             handleOptions(os, field.options)
         }
@@ -238,7 +238,7 @@ private fun handleMethod(os: IndentedWriter, method: DescriptorProtos.MethodDesc
 private fun handleOptions(os: IndentedWriter, options:  DescriptorProtos.FieldOptions) {
     val fieldOptions = options.allFields
         .filter { (t, _) -> options.hasField(t) }
-        .map { (t, u) -> "${t.name}=${if(u is Boolean){u}else{"\"${u}\""}}" }
+        .map { (t, u) -> "${t.name}=${ if(u is String) "\"${u}\"" else u }" }
         .joinToString { "," }
 
     os.append(" [${fieldOptions}]")
@@ -247,7 +247,7 @@ private fun handleOptions(os: IndentedWriter, options:  DescriptorProtos.FieldOp
 private fun handleOptions(os: IndentedWriter, options: Message) {
     options.allFields
         .filter { (t, _) -> options.hasField(t) }
-        .map { (t, u) -> "option ${t.name} = ${if(u is Boolean) { u } else { "\"${u}\"" }};" }
+        .map { (t, u) -> "option ${t.name} = ${ if(u is String) "\"${u}\"" else u };" }
         .forEach { line -> os.appendLine(line) }
 }
 
