@@ -230,9 +230,19 @@ private fun handleService(os: IndentedWriter, service: DescriptorProtos.ServiceD
 }
 
 private fun handleMethod(os: IndentedWriter, method: DescriptorProtos.MethodDescriptorProto) {
-    os.appendLine("rpc ${method.name}" +
-            " ( ${if(method.clientStreaming) "stream " else ""}${method.inputType} )" +
-            " returns ( ${if(method.serverStreaming) "stream " else ""}${method.outputType} );")
+    os.appendLine(StringBuilder().apply {
+        val cstream = if(method.clientStreaming) "stream " else ""
+        val sstream = if(method.serverStreaming) "stream " else ""
+        append("rpc ${method.name} ( ${cstream}${method.inputType} ) returns ( ${sstream}${method.outputType} )")
+        if(method.hasOptions()) append(" {") else append(";")
+    })
+
+    if(method.hasOptions()) {
+        os.indent {
+            handleOptions(os, method.options)
+        }
+        os.appendLine("}")
+    }
 }
 
 private fun handleOptions(os: IndentedWriter, options:  DescriptorProtos.FieldOptions) {

@@ -28,6 +28,9 @@ message LockDoorResponse {
 }
 
 service House {
-   rpc GetInfo ( GetInfoRequest ) returns ( HouseDetails );
+   rpc GetInfo ( GetInfoRequest ) returns ( HouseDetails ) {
+     option deprecated = false;
+     option idempotency_level = IDEMPOTENT;
+   }
    rpc LockDoor ( LockDoorRequest ) returns ( LockDoorResponse );
 }
