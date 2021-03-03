@@ -31,10 +31,12 @@ message WatchDoggoPlayRequest {
 
 message WatchDoggoResponse {
   enum DoggoActivity {
+    option allow_alias = true;
     SLEEPING = 0;
     BARKING = 1;
     EATING = 2;
     GROWLING = 3;
+    ANGRY = 3;
   }
   .org.property.WatchDoggoResponse.DoggoActivity what_is_he_doing = 1;
   uint64 timestamp_unix = 2;
