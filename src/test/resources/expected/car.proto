@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package org.property;
+
+import "google/protobuf/timestamp.proto";
+
+message CarDetails {
+  uint64 id = 1;
+  string make = 2;
+  string model = 3;
+  .google.protobuf.Timestamp purchaseDate = 5;
+}

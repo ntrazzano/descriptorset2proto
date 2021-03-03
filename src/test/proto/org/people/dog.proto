@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package org.property;
+
+
+message DoggoToy {
+  string name = 1;
+  uint32 cost = 2;
+  bool is_squishy = 3;
+
+  reserved 4, 5, 6, 100 to 200;
+}
+
+message Doggo {
+  string firstName = 1;
+  string lastName = 2;
+  string breed = 3;
+  int32 age = 4;
+  map<string, DoggoToy> toys = 5;
+
+  reserved "doghouse", "color";
+}
+
+message WatchDoggoPlayRequest {
+  uint32 sendUpdatesEveryDurationMS = 1;
+}
+
+message WatchDoggoResponse {
+  enum DoggoActivity {
+    SLEEPING = 0;
+    BARKING = 1;
+    EATING = 2;
+    GROWLING = 3;
+  }
+
+  DoggoActivity what_is_he_doing = 1;
+  uint64 timestamp_unix = 2;
+}
+
+service DoggoCamera {
+  rpc WatchDoggoPlay ( WatchDoggoPlayRequest ) returns ( stream WatchDoggoResponse );
+}

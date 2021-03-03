@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package org.property;
+
+import "google/protobuf/timestamp.proto";
+
+message HouseDetails {
+  uint64 id = 1;
+  uint32 addressNumber = 2;
+  string streetName = 3;
+  string zipCode = 4;
+  .google.protobuf.Timestamp purchaseDate = 5;
+}
+
+message GetInfoRequest {
+  uint64 id = 1;
+}
+
+message LockDoorRequest {
+  bool deadbolt = 1;
+}
+
+message LockDoorResponse {
+  bool success = 1;
+}
+
+service House {
+  rpc GetInfo ( .org.property.GetInfoRequest ) returns ( .org.property.HouseDetails );
+  rpc LockDoor ( .org.property.LockDoorRequest ) returns ( .org.property.LockDoorResponse );
+}
