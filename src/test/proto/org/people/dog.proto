@@ -3,11 +3,14 @@ syntax = "proto3";
 package org.property;
 
 option optimize_for = CODE_SIZE;
+option java_multiple_files = true;
 
 message DoggoToy {
   string name = 1;
   uint32 cost = 2;
-  bool is_squishy = 3;
+  uint64 legacyCost = 3 [deprecated=true, jstype=JS_STRING];
+  bool is_squishy = 8;
+  float decibelsWhenSqueezed = 7;
 
   reserved 4, 5, 6, 100 to 200;
 }
@@ -17,7 +20,7 @@ message Doggo {
   string lastName = 2;
   string breed = 3;
   int32 age = 4;
-  map<string, DoggoToy> toys = 5;
+  map<string, DoggoToy> toys = 5 [lazy=true];
 
   reserved "doghouse", "color";
 }

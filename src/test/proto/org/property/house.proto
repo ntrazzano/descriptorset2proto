@@ -3,6 +3,7 @@ syntax = "proto3";
 package org.property;
 
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/any.proto";
 
 option java_outer_classname = "CustomHouseDetailsClassName";
 
@@ -12,6 +13,7 @@ message HouseDetails {
   string streetName = 3;
   string zipCode = 4;
   google.protobuf.Timestamp purchaseDate = 5;
+  repeated google.protobuf.Any stuffInHouse = 6;
 }
 
 message GetInfoRequest {

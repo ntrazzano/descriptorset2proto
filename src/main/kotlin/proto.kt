@@ -239,7 +239,7 @@ private fun handleOptions(os: IndentedWriter, options:  DescriptorProtos.FieldOp
     val fieldOptions = options.allFields
         .filter { (t, _) -> options.hasField(t) }
         .map { (t, u) -> "${t.name}=${ if(u is String) "\"${u}\"" else u }" }
-        .joinToString { "," }
+        .joinToString(", ")
 
     os.append(" [${fieldOptions}]")
 }
