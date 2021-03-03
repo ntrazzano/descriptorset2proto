@@ -40,6 +40,8 @@ fun dumpProtoFileDescriptorSet(
                 }
             } else 3
 
+            val parsingContext = ParsingContext(os, syntax, proto.extensionList)
+
             if(proto.hasPackage()) {
                 os.appendLine("package ${proto.`package`};")
                 os.appendLine()
@@ -50,23 +52,29 @@ fun dumpProtoFileDescriptorSet(
             }
             if(proto.dependencyList.size > 0) os.appendLine()
 
+
             if(proto.hasOptions()) {
-                handleOptions(os, proto.options)
+                handleOptions(parsingContext, proto.options)
+                os.appendLine()
+            }
+
+            proto.extensionList.groupBy { it.extendee }.forEach { extensionType ->
+                handleExtensionType(parsingContext, extensionType.toPair())
                 os.appendLine()
             }
 
             proto.messageTypeList.forEach { messageType ->
-                handleMessageType(os, messageType, syntax)
+                handleMessageType(parsingContext, messageType)
                 os.appendLine()
             }
 
             proto.enumTypeList.forEach { enumType ->
-                handleEnumType(os, enumType)
+                handleEnumType(parsingContext, enumType)
                 os.appendLine()
             }
 
             proto.serviceList.forEach { service ->
-                handleService(os, service)
+                handleService(parsingContext, service)
                 os.appendLine()
             }
 
@@ -76,6 +84,15 @@ fun dumpProtoFileDescriptorSet(
 
     return results
 }
+
+/**
+ * Any data needed in order to parse the binary representation.
+ */
+private data class ParsingContext(
+    val os: IndentedWriter,
+    val protoVersion: Int,
+    val extensions: List<DescriptorProtos.FieldDescriptorProto> = emptyList()
+)
 
 /**
  * Wrapper around Writer class that can keep track of and add indents to all appended messages.
@@ -121,25 +138,25 @@ private class IndentedWriter(private val base : Writer) : Closeable by base, Flu
     }
 }
 
-private fun handleMessageType(os: IndentedWriter, messageType: DescriptorProtos.DescriptorProto, protoVersion: Int) {
-    os.appendLine("message ${messageType.name} {")
-    os.indent {
+private fun handleMessageType(ctx: ParsingContext, messageType: DescriptorProtos.DescriptorProto) {
+    ctx.os.appendLine("message ${messageType.name} {")
+    ctx.os.indent {
         if(messageType.hasOptions()) {
-            handleOptions(os, messageType.options)
-            os.appendLine()
+            handleOptions(ctx, messageType.options)
+            ctx.os.appendLine()
         }
 
         messageType.enumTypeList.forEach { enumType ->
-            handleEnumType( os, enumType)
+            handleEnumType(ctx, enumType)
         }
 
         messageType.nestedTypeList.filter { !it.options.mapEntry }.forEach { nestedType ->
-            handleMessageType(os, nestedType, protoVersion)
+            handleMessageType(ctx, nestedType)
         }
 
         messageType.oneofDeclList.forEachIndexed { index, oneOfField ->
             val oneOfFieldEntries = messageType.fieldList.filter { field -> field.hasOneofIndex() && field.oneofIndex == index }
-            handleOneOf(os, oneOfField, oneOfFieldEntries, protoVersion)
+            handleOneOf(ctx, oneOfField, oneOfFieldEntries)
         }
 
         messageType.fieldList.filter { field -> !field.hasOneofIndex() }.forEach { field ->
@@ -148,89 +165,99 @@ private fun handleMessageType(os: IndentedWriter, messageType: DescriptorProtos.
                 .firstOrNull { field.typeName.endsWith(".${messageType.name}.${it.name}") }
 
             if(mapEntryMatch != null) {
-                handleMapField(os, field, mapEntryMatch)
+                handleMapField(ctx, field, mapEntryMatch)
             } else {
-                handleField(os, field, protoVersion)
+                handleField(ctx, field)
             }
         }
 
         if(messageType.reservedNameCount > 0) {
-            handleReservedNames(os, messageType.reservedNameList)
+            handleReservedNames(ctx, messageType.reservedNameList)
         }
 
         if(messageType.reservedRangeCount > 0) {
-            handleReservedRange(os, messageType.reservedRangeList)
+            handleReservedRange(ctx, messageType.reservedRangeList)
         }
     }
-    os.appendLine("}")
+    ctx.os.appendLine("}")
 }
 
-private fun handleEnumType(os: IndentedWriter, enum: DescriptorProtos.EnumDescriptorProto) {
-    os.appendLine("enum ${enum.name} {")
-    os.indent {
+private fun handleEnumType(ctx: ParsingContext, enum: DescriptorProtos.EnumDescriptorProto) {
+    ctx.os.appendLine("enum ${enum.name} {")
+    ctx.os.indent {
         if (enum.hasOptions()) {
-            handleOptions(os, enum.options)
+            handleOptions(ctx, enum.options)
         }
         enum.valueList.forEach { enumEntry ->
-            os.appendLine("${enumEntry.name} = ${enumEntry.number};")
+            ctx.os.appendLine("${enumEntry.name} = ${enumEntry.number};")
         }
     }
-    os.appendLine("}")
+    ctx.os.appendLine("}")
 }
 
-private fun handleOneOf(os: IndentedWriter, oneof: DescriptorProtos.OneofDescriptorProto,
-                        oneOfFieldEntries: List<DescriptorProtos.FieldDescriptorProto>, protoVersion: Int) {
-    os.appendLine("oneof ${oneof.name} {")
-    os.indent {
+private fun handleOneOf(ctx: ParsingContext, oneof: DescriptorProtos.OneofDescriptorProto,
+                        oneOfFieldEntries: List<DescriptorProtos.FieldDescriptorProto>) {
+    ctx.os.appendLine("oneof ${oneof.name} {")
+    ctx.os.indent {
         if (oneof.hasOptions()) {
-            handleOptions(os, oneof.options)
+            handleOptions(ctx, oneof.options)
         }
         oneOfFieldEntries.forEach { field ->
-            handleField(os, field, protoVersion)
+            handleField(ctx, field)
         }
     }
-    os.appendLine("}")
+    ctx.os.appendLine("}")
 }
 
-private fun handleMapField(os: IndentedWriter, field: DescriptorProtos.FieldDescriptorProto,
+private fun handleExtensionType(ctx: ParsingContext, extensionType: Pair<String, List<DescriptorProtos.FieldDescriptorProto>>) {
+    ctx.os.appendLine("extend ${extensionType.first} {")
+    ctx.os.indent {
+        extensionType.second.forEach { field ->
+            handleField(ctx, field)
+        }
+    }
+    ctx.os.appendLine("}")
+}
+
+private fun handleMapField(ctx: ParsingContext, field: DescriptorProtos.FieldDescriptorProto,
                            mapEntryMessageType: DescriptorProtos.DescriptorProto) {
     // "map" "<" keyType "," type ">" mapName "=" fieldNumber [ "[" fieldOptions "]" ] ";"
     val keyType = mapEntryMessageType.fieldList.first { it.name == "key" && it.number == 1 }
     val valueType = mapEntryMessageType.fieldList.first { it.name == "value" && it.number == 2 }
-    os.append("map<${keyType.typeString},${valueType.typeString}> ${field.name} = ${field.number}")
+    ctx.os.append("map<${keyType.typeString},${valueType.typeString}> ${field.name} = ${field.number}")
 
-    os.disableIndent {
+    ctx.os.disableIndent {
         if (field.hasOptions()) {
-            handleOptions(os, field.options)
+            handleOptions(ctx, field.options)
         }
-        os.appendLine(";")
+        ctx.os.appendLine(";")
     }
 }
 
-private fun handleField(os: IndentedWriter, field: DescriptorProtos.FieldDescriptorProto, protoVersion: Int) {
+private fun handleField(ctx: ParsingContext, field: DescriptorProtos.FieldDescriptorProto) {
     // {REPEAT?} {TYPE} {NAME} = {NUMBER} [FIELD_OPTIONS,..n];
-    os.append(field.label.asProtoString(protoVersion))
-    os.disableIndent {
-        os.append(" ${field.typeString} ${field.name} = ${field.number}")
+    ctx.os.append(field.label.asProtoString(ctx.protoVersion))
+    ctx.os.disableIndent {
+        ctx.os.append(" ${field.typeString} ${field.name} = ${field.number}")
         if (field.hasOptions()) {
-            handleOptions(os, field.options)
+            handleOptions(ctx, field.options)
         }
-        os.appendLine(";")
+        ctx.os.appendLine(";")
     }
 }
 
-private fun handleService(os: IndentedWriter, service: DescriptorProtos.ServiceDescriptorProto) {
-    os.appendLine("service ${service.name} {")
-    os.indent {
+private fun handleService(ctx: ParsingContext, service: DescriptorProtos.ServiceDescriptorProto) {
+    ctx.os.appendLine("service ${service.name} {")
+    ctx.os.indent {
         service.methodList.forEach { method ->
-            handleMethod(os, method)
+            handleMethod(ctx, method)
         }
     }
-    os.appendLine("}")
+    ctx.os.appendLine("}")
 }
 
-private fun handleMethod(os: IndentedWriter, method: DescriptorProtos.MethodDescriptorProto) {
-    os.appendLine(StringBuilder().apply {
+private fun handleMethod(ctx: ParsingContext, method: DescriptorProtos.MethodDescriptorProto) {
+    ctx.os.appendLine(StringBuilder().apply {
         val cstream = if(method.clientStreaming) "stream " else ""
         val sstream = if(method.serverStreaming) "stream " else ""
         append("rpc ${method.name} ( ${cstream}${method.inputType} ) returns ( ${sstream}${method.outputType} )")
@@ -238,35 +265,37 @@ private fun handleMethod(os: IndentedWriter, method: DescriptorProtos.MethodDesc
     })
 
     if(method.hasOptions()) {
-        os.indent {
-            handleOptions(os, method.options)
+        ctx.os.indent {
+            handleOptions(ctx, method.options)
         }
-        os.appendLine("}")
+        ctx.os.appendLine("}")
     }
 }
 
-private fun handleOptions(os: IndentedWriter, options:  DescriptorProtos.FieldOptions) {
+private fun handleOptions(ctx: ParsingContext, options:  DescriptorProtos.FieldOptions) {
     val fieldOptions = options.allFields
         .filter { (t, _) -> options.hasField(t) }
-        .map { (t, u) -> "${t.name}=${ if(u is String) "\"${u}\"" else u }" }
+        .map { (t, u) ->
+            "${t.name}=${ if(u is String) "\"${u}\"" else u }"
+        }
         .joinToString(", ")
 
-    os.append(" [${fieldOptions}]")
+    ctx.os.append(" [${fieldOptions}]")
 }
 
-private fun handleOptions(os: IndentedWriter, options: Message) {
+private fun handleOptions(ctx: ParsingContext, options: Message) {
     options.allFields
-        .filter { (t, _) -> options.hasField(t) }
+        .filter { (t, _) -> options.hasField(t)}
         .map { (t, u) -> "option ${t.name} = ${ if(u is String) "\"${u}\"" else u };" }
-        .forEach { line -> os.appendLine(line) }
+        .forEach { line -> ctx.os.appendLine(line) }
 }
 
-private fun handleReservedNames(os: IndentedWriter, reservedNames: List<String>) {
+private fun handleReservedNames(ctx: ParsingContext, reservedNames: List<String>) {
     val reservedNameStr = reservedNames.joinToString(", ") { "\"$it\"" }
-    os.appendLine("reserved $reservedNameStr;")
+    ctx.os.appendLine("reserved $reservedNameStr;")
 }
 
-private fun handleReservedRange(os: IndentedWriter, reservedRange:  List<DescriptorProtos.DescriptorProto.ReservedRange>) {
+private fun handleReservedRange(ctx: ParsingContext, reservedRange:  List<DescriptorProtos.DescriptorProto.ReservedRange>) {
     val sorted = reservedRange.sortedBy { it.start }
     val reservedRangeStr = sorted.joinToString(", ") {
         if(it.start == it.end - 1) {
@@ -275,7 +304,7 @@ private fun handleReservedRange(os: IndentedWriter, reservedRange:  List<Descrip
             "${it.start} to ${it.end - 1}"
         }
     }
-    os.appendLine("reserved $reservedRangeStr;")
+    ctx.os.appendLine("reserved $reservedRangeStr;")
 }
 
 private val DescriptorProtos.FieldDescriptorProto.typeString : String
